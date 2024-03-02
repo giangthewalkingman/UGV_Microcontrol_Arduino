@@ -1,5 +1,9 @@
 #include <SBUS.h>
+
+// #include <SBUS.cpp>
 #include <limits.h>
+#include <RC_Receiver.h> //ch1: throttle, ch2: steer, ch6: arm. ch7: kill
+// #include <RC_Receiver.cpp>
 
 #define FRONT_RIGHT_PWM_FW 9
 #define FRONT_RIGHT_PWM_BW 10
@@ -19,9 +23,10 @@
 #define REAR_LEFT_EN_FW 47
 #define REAR_LEFT_EN_BW 49
 
+// #define SBUS_SIGNAL_OK 0x00
 
-
-SBUS sbus(Serial2);
+// SBUS sbus(Serial3);
+RC_Receiver receiver(2,3,4,13);
 
 const int delay_time = 1000;
 static int minChannel = INT_MAX;
@@ -32,14 +37,12 @@ void backward_drive(uint8_t pwm);
 void left_drive(uint8_t pwm);
 void right_drive(uint8_t pwm);
 void stop();
-void disable();
 void test_drive();
-void rc_drive();
+void throttle(uint8_t pwm);
 
 void setup() {
   Serial.begin(9600);
-  sbus.begin();
-
+  // sbus.begin();
   pinMode(FRONT_RIGHT_EN_FW, OUTPUT);
   pinMode(FRONT_RIGHT_EN_BW, OUTPUT);
   pinMode(FRONT_LEFT_EN_FW, OUTPUT);
@@ -51,37 +54,54 @@ void setup() {
 }
 
 // This is timer 0, which triggers ever 1ms and processes the incoming SBUS datastream.
-ISR(TIMER0_COMPA_vect)
-{
-  sbus.process();
-}
+// ISR(TIMER0_COMPA_vect)
+// {
+//   sbus.process();
+// }
 
-// Scale the S.BUS channel values into the range [0, 255] for use as LED brightness values.
-int getChannel(int channel) {
-  int value = sbus.getChannel(channel);
+// // Scale the S.BUS channel values into the range [0, 255] for use as LED brightness values.
+// int getChannel(int channel) {
+//   int value = sbus.getChannel(channel);
 
-  if (value < minChannel) {
-    minChannel = value;
-  }
-  if (value > maxChannel) {
-    maxChannel = value;
-  }
+//   if (value < minChannel) {
+//     minChannel = value;
+//   }
+//   if (value > maxChannel) {
+//     maxChannel = value;
+//   }
 
-  float result = value;
+//   float result = value;
   
-  result -= minChannel;
-  result /= (maxChannel - minChannel);
-  result *= 255;
+//   result -= minChannel;
+//   result /= (maxChannel - minChannel);
+//   result *= 255;
 
-  return (int)result; 
-}
+//   return (int)result; 
+// }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
   // test_drive();
+  while(1) {
+   //prints receiver raw val
+   Serial.print(receiver.getRaw(2));
+  //  Serial.print("\t");  
+  //  Serial.print(receiver.getRaw(3));
+  //  Serial.print("\t");  
+  //  Serial.print(receiver.getRaw(4));
+  //  Serial.print("\t");  
+  //  Serial.print(receiver.getRaw(13));
+  //  Serial.print("\t");  
+   Serial.println();
+  }
+  // while(1) {
+  //   if(sbus.getFailsafeStatus() == SBUS_SIGNAL_OK) {
+  //     Serial.println("sbus signal is ok, ready to drive, pick up your RC!");
+      
+  //   }
+  // }
 
-  
+
 }
 
 void backward_drive(uint8_t pwm) {
@@ -221,4 +241,8 @@ void stop() {
   analogWrite(REAR_RIGHT_PWM_BW, 0);
   analogWrite(REAR_LEFT_PWM_FW, 0);
   analogWrite(REAR_RIGHT_PWM_FW, 0);
+}
+
+void throttle() {
+  //
 }

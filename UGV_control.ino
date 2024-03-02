@@ -1,9 +1,5 @@
-#include <SBUS.h>
-
-// #include <SBUS.cpp>
-#include <limits.h>
-#include <RC_Receiver.h> //ch1: throttle, ch2: steer, ch6: arm. ch7: kill
-// #include <RC_Receiver.cpp>
+// #include <SBUS.h>
+#include <sbus.h> //ch1: throttle, ch2: steer, ch6: arm. ch7: kill
 
 #define FRONT_RIGHT_PWM_FW 9
 #define FRONT_RIGHT_PWM_BW 10
@@ -23,10 +19,14 @@
 #define REAR_LEFT_EN_FW 47
 #define REAR_LEFT_EN_BW 49
 
-// #define SBUS_SIGNAL_OK 0x00
+/* SBUS object, reading SBUS */
+bfs::SbusRx sbus_rx(&Serial2);
+/* SBUS object, writing SBUS */
+bfs::SbusTx sbus_tx(&Serial2);
+/* SBUS data */
+bfs::SbusData data;
 
-// SBUS sbus(Serial3);
-RC_Receiver receiver(2,3,4,13);
+// RC_Receiver receiver(2,3,4,13);
 
 const int delay_time = 1000;
 static int minChannel = INT_MAX;
@@ -43,6 +43,11 @@ void throttle(uint8_t pwm);
 void setup() {
   Serial.begin(9600);
   // sbus.begin();
+  while (!Serial) {}
+  /* Begin the SBUS communication */
+  sbus_rx.Begin();
+  sbus_tx.Begin();
+
   pinMode(FRONT_RIGHT_EN_FW, OUTPUT);
   pinMode(FRONT_RIGHT_EN_BW, OUTPUT);
   pinMode(FRONT_LEFT_EN_FW, OUTPUT);
@@ -53,46 +58,28 @@ void setup() {
   pinMode(REAR_LEFT_EN_BW, OUTPUT);
 }
 
-// This is timer 0, which triggers ever 1ms and processes the incoming SBUS datastream.
-// ISR(TIMER0_COMPA_vect)
-// {
-//   sbus.process();
-// }
-
-// // Scale the S.BUS channel values into the range [0, 255] for use as LED brightness values.
-// int getChannel(int channel) {
-//   int value = sbus.getChannel(channel);
-
-//   if (value < minChannel) {
-//     minChannel = value;
-//   }
-//   if (value > maxChannel) {
-//     maxChannel = value;
-//   }
-
-//   float result = value;
-  
-//   result -= minChannel;
-//   result /= (maxChannel - minChannel);
-//   result *= 255;
-
-//   return (int)result; 
-// }
 
 void loop() {
   // put your main code here, to run repeatedly:
   // test_drive();
   while(1) {
-   //prints receiver raw val
-   Serial.print(receiver.getRaw(2));
-  //  Serial.print("\t");  
-  //  Serial.print(receiver.getRaw(3));
-  //  Serial.print("\t");  
-  //  Serial.print(receiver.getRaw(4));
-  //  Serial.print("\t");  
-  //  Serial.print(receiver.getRaw(13));
-  //  Serial.print("\t");  
-   Serial.println();
+    if (sbus_rx.Read()) {
+      /* Grab the received data */
+      data = sbus_rx.data();
+      /* Display the received data */
+      for (int8_t i = 0; i < data.NUM_CH; i++) {
+        Serial.print(data.ch[i]);
+        Serial.print("\t");
+      }
+      /* Display lost frames and failsafe data */
+      Serial.print(data.lost_frame);
+      Serial.print("\t");
+      Serial.println(data.failsafe);
+      /* Set the SBUS TX data to the received data */
+      sbus_tx.data(data);
+      /* Write the data to the servos */
+      sbus_tx.Write();
+    }
   }
   // while(1) {
   //   if(sbus.getFailsafeStatus() == SBUS_SIGNAL_OK) {

@@ -9,13 +9,17 @@
 // Define the maximum and minimum values for the SBUS channels (throttle and steering)
 //trim ch1: 1481
 //trim ch2: 1503
-#define SBUS_ARM_TRIM 1000
-#define SBUS_THROTTLE_MIN  988
-#define SBUS_THROTTLE_MAX  1974
-#define SBUS_STEERING_MIN  994
-#define SBUS_STEERING_MAX  2012
+#define SBUS_ARM_MIN 172
+#define SBUS_ARM_MAX 1811
+#define SBUS_ARM_TRIM 992
+#define SBUS_THROTTLE_MIN  172
+#define SBUS_THROTTLE_MAX  1750
+#define SBUS_THROTTLE_TRIM 1001
+#define SBUS_STEERING_MIN  182
+#define SBUS_STEERING_MAX  1811
+#define SBUS_THROTTLE_TRIM 1001
 // Define the maximum PWM duty cycle for motor control
-#define MAX_PWM_DUTY_CYCLE 255
+#define MAX_PWM_DUTY_CYCLE 225
 #define MIN_PWM_DUTY_CYCLE 0
 #define THROTTLE_TRIM 25 //apprxmly 1/10 duty cycle
 #define STEERING_TRIM 12 //apprxmly 1/2 throttle trim
@@ -47,6 +51,7 @@ bfs::SbusTx sbus_tx(&Serial2);
 bfs::SbusData data;
 
 const int delay_time = 1000;
+bool arm_flag = false;
 bool throttle_flag = false;
 bool steering_flag = false;
 uint32_t current_speed = 0;
@@ -103,15 +108,39 @@ void loop() {
   //     sbus_tx.Write();
   //   }
   // }
-
+  // while(1) {
+  //     sbus_rx.Read();
+  //     data = sbus_rx.data();
+  //     for (int8_t i = 0; i < data.NUM_CH; i++) {
+  //       // Serial.print(data.ch[i]);
+  //       Serial.print(sbus_rx.data().ch[i]);
+  //       Serial.print("\t");
+  //     }
+  //        /* Display lost frames and failsafe data */
+  //     Serial.print(data.lost_frame);
+  //     Serial.print("\t");
+  //     Serial.println(data.failsafe);
+  // }
   while(1) {
+    sbus_rx.Read();
     /* Grab the received data */
-    data = sbus_rx.data();
-    if(data.failsafe == 0) {
+    // data = sbus_rx.data();
+      // for (int8_t i = 0; i < data.NUM_CH; i++) {
+      //   Serial.print(data.ch[i]);
+      //   Serial.print("\t");
+      // }
+    if(sbus_rx.data().failsafe == 0) {
+      Serial.print("\n");
       Serial.println("Acquired RC signal, ready to arm...");
-      while(!(data.ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM));
+      // while(!(sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM));
+      while(!(sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM)) {
+        arm_flag = false;
+        sbus_rx.Read();
+      }
       Serial.println("Arming...");
-      while(data.failsafe == 0) {
+      arm_flag = true;
+      while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM) {
+        sbus_rx.Read();
         if(steering_flag == false) {
         throttle();
         }
@@ -119,7 +148,12 @@ void loop() {
         steering();
         }
       }
-    } else if(data.failsafe == 1) {
+      while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] < SBUS_ARM_TRIM) {
+        sbus_rx.Read();
+        stop();
+        Serial.println("Disarmed");
+      }
+    } else if(sbus_rx.data().failsafe == 1) {
       Serial.println("Lost RC signal");
       failsafe_handle();
     }
@@ -268,14 +302,16 @@ void stop() {
 
 // Function to control the car's speed proportional to the throttle value received from channel
 void throttle() {
-  int32_t throttleValue = map(data.ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
+  int32_t throttleValue = map(sbus_rx.data().ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
   if(throttleValue >= -MAX_PWM_DUTY_CYCLE && throttleValue <= MAX_PWM_DUTY_CYCLE ) {
     if(throttleValue > THROTTLE_TRIM) {
       throttle_flag = true;
+      throttleValue = map(throttleValue,THROTTLE_TRIM,255,0,MAX_PWM_DUTY_CYCLE);
       forward_drive(throttleValue);
       current_speed = throttleValue;
     } else if(throttleValue < -THROTTLE_TRIM) {
       throttle_flag = true;
+      throttleValue = map(abs(throttleValue),THROTTLE_TRIM,255,0,MAX_PWM_DUTY_CYCLE);
       backward_drive(abs(throttleValue));
       current_speed = throttleValue;
     } else {
@@ -287,14 +323,16 @@ void throttle() {
 
 // Function to control the car's steering based on the value received from channel
 void steering() {
-    int32_t steeringValue = map(data.ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
+    int32_t steeringValue = map(sbus_rx.data().ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
     if(steeringValue >= -MAX_PWM_DUTY_CYCLE && steeringValue <= MAX_PWM_DUTY_CYCLE ) {
     	if(steeringValue > STEERING_TRIM) {
         steering_flag = true;
+        steeringValue = map(steeringValue,STEERING_TRIM,255,0,MAX_PWM_DUTY_CYCLE);
     		right_drive(steeringValue);
         current_speed = steeringValue;
     	} else if(steeringValue < -STEERING_TRIM) {
         steering_flag = true;
+        steeringValue = map(abs(steeringValue),STEERING_TRIM,255,0,MAX_PWM_DUTY_CYCLE);
     		left_drive(abs(steeringValue));
         current_speed = steeringValue;
     	} else {

@@ -5,9 +5,11 @@
 // Define channels to control the car
 #define THROTTLE_CHANNEL_INDEX 0
 #define STEERING_CHANNEL_INDEX 1
+#define ARM_CHANNEL_INDEX 5
 // Define the maximum and minimum values for the SBUS channels (throttle and steering)
 //trim ch1: 1481
 //trim ch2: 1503
+#define SBUS_ARM_TRIM 1000
 #define SBUS_THROTTLE_MIN  988
 #define SBUS_THROTTLE_MAX  1974
 #define SBUS_STEERING_MIN  994
@@ -48,6 +50,7 @@ const int delay_time = 1000;
 bool throttle_flag = false;
 bool steering_flag = false;
 uint32_t current_speed = 0;
+uint8_t rc_flag = 0;
 
 void forward_drive(uint8_t pwm);
 void backward_drive(uint8_t pwm);
@@ -105,13 +108,19 @@ void loop() {
     /* Grab the received data */
     data = sbus_rx.data();
     if(data.failsafe == 0) {
-      if(steering_flag == false) {
+      Serial.println("Acquired RC signal, ready to arm...");
+      while(!(data.ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM));
+      Serial.println("Arming...");
+      while(data.failsafe == 0) {
+        if(steering_flag == false) {
         throttle();
-      }
-      if(throttle_flag == false) {
+        }
+        if(throttle_flag == false) {
         steering();
+        }
       }
     } else if(data.failsafe == 1) {
+      Serial.println("Lost RC signal");
       failsafe_handle();
     }
   }

@@ -66,7 +66,7 @@ bool left_flag = false;
 bool right_flag = false;
 
 void forward_drive(uint8_t fw_pwm,uint8_t  turn_pwm);
-void forward_drive(uint8_t bw_pwm,uint8_t  turn_pwm);
+void backward_drive(uint8_t bw_pwm,uint8_t  turn_pwm);
 void left_drive(uint8_t pwm);
 void right_drive(uint8_t pwm);
 void stop();
@@ -157,12 +157,7 @@ void loop() {
       arm_flag = true;
       while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM) {
         sbus_rx.Read();
-        if(steering_flag == false) {
-        throttle();
-        }
-        if(throttle_flag == false) {
-        steering();
-        }
+        throttle_steering();
       }
       while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] < SBUS_ARM_TRIM) {
         sbus_rx.Read();
@@ -183,7 +178,7 @@ void backward_drive(uint8_t bw_pwm,uint8_t  turn_pwm) {
   // Serial.print("\n");
   left_speed = constrain(bw_pwm + turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
   right_speed = constrain(bw_pwm - turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  if(pwm >= 0) {
+  if(turn_pwm >= 0) {
     Serial.print("Turning right: ");
     Serial.print("\t");
     if(right_speed >= 0) {
@@ -211,7 +206,7 @@ void backward_drive(uint8_t bw_pwm,uint8_t  turn_pwm) {
       analogWrite(REAR_RIGHT_PWM_FW, right_speed);
     }
   }
-  if(pwm < 0) {
+  if(turn_pwm < 0) {
     Serial.print("Turning left: ");
     Serial.print("\t");
     if(left_speed >= 0) {
@@ -238,6 +233,20 @@ void backward_drive(uint8_t bw_pwm,uint8_t  turn_pwm) {
       analogWrite(REAR_LEFT_PWM_FW, left_speed);
       analogWrite(REAR_RIGHT_PWM_FW, 0);
     }
+  }
+  if(turn_pwm == 0) {
+    Serial.print("No turning: ");
+    Serial.print("\t");
+    left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
+    right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
+    analogWrite(FRONT_LEFT_PWM_BW, left_speed);
+    analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
+    analogWrite(FRONT_LEFT_PWM_FW, 0);
+    analogWrite(FRONT_RIGHT_PWM_FW, 0);
+    analogWrite(REAR_LEFT_PWM_BW, left_speed);
+    analogWrite(REAR_RIGHT_PWM_BW, right_speed);
+    analogWrite(REAR_LEFT_PWM_FW, 0);
+    analogWrite(REAR_RIGHT_PWM_FW, 0);
   }
   Serial.print("left speed: ");
   Serial.print(left_speed);
@@ -252,9 +261,9 @@ void forward_drive(uint8_t fw_pwm,uint8_t  turn_pwm) {
   // Serial.print("Moving forward, speed is ");
   // Serial.print(fw_pwm);
   // Serial.print("\n");
-  left_speed = constrain(bw_pwm + turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  right_speed = constrain(bw_pwm - turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  if(pwm >= 0) {
+  left_speed = constrain(fw_pwm + turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
+  right_speed = constrain(fw_pwm - turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
+  if(turn_pwm > 0) {
     Serial.print("Turning right: ");
     Serial.print("\t");
     if(right_speed >= 0) {
@@ -282,7 +291,7 @@ void forward_drive(uint8_t fw_pwm,uint8_t  turn_pwm) {
       analogWrite(REAR_RIGHT_PWM_FW, 0);
     }
   }
-  if(pwm < 0) {
+  if(turn_pwm < 0) {
     Serial.print("Turning left: ");
     Serial.print("\t");
     if(left_speed >= 0) {
@@ -310,6 +319,20 @@ void forward_drive(uint8_t fw_pwm,uint8_t  turn_pwm) {
       analogWrite(REAR_RIGHT_PWM_FW, right_speed);
     }
   }
+  if(turn_pwm == 0) {
+    Serial.print("No turning: ");
+    Serial.print("\t");
+    left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
+    right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
+    analogWrite(FRONT_LEFT_PWM_BW, 0);
+    analogWrite(FRONT_RIGHT_PWM_BW, 0);
+    analogWrite(FRONT_LEFT_PWM_FW, left_speed);
+    analogWrite(FRONT_RIGHT_PWM_FW, right_speed);
+    analogWrite(REAR_LEFT_PWM_BW, 0);
+    analogWrite(REAR_RIGHT_PWM_BW, 0);
+    analogWrite(REAR_LEFT_PWM_FW, left_speed);
+    analogWrite(REAR_RIGHT_PWM_FW, right_speed);
+  }
   Serial.print("left speed: ");
   Serial.print(left_speed);
   Serial.print("\t");
@@ -323,9 +346,9 @@ void hold_drive(uint8_t  turn_pwm) {
   // Serial.print("Moving forward, speed is ");
   // Serial.print(fw_pwm);
   // Serial.print("\n");
-  left_speed = constrain(turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  right_speed = constrain(-turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  if(turn_pwm >= 0) {
+  left_speed = constrain(turn_pwm, 0, MAX_PWM_DUTY_CYCLE);
+  right_speed = constrain(turn_pwm, 0, MAX_PWM_DUTY_CYCLE);
+  if(turn_pwm > 0) {
     analogWrite(FRONT_LEFT_PWM_BW, 0);
     analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
     analogWrite(FRONT_LEFT_PWM_FW, left_speed);
@@ -334,7 +357,8 @@ void hold_drive(uint8_t  turn_pwm) {
     analogWrite(REAR_RIGHT_PWM_BW, right_speed);
     analogWrite(REAR_LEFT_PWM_FW, left_speed);
     analogWrite(REAR_RIGHT_PWM_FW, 0);   
-  } else {
+  } 
+  if(turn_pwm < 0) {
     analogWrite(FRONT_LEFT_PWM_BW, left_speed);
     analogWrite(FRONT_RIGHT_PWM_BW, 0);
     analogWrite(FRONT_LEFT_PWM_FW, 0);
@@ -343,6 +367,9 @@ void hold_drive(uint8_t  turn_pwm) {
     analogWrite(REAR_RIGHT_PWM_BW, 0);
     analogWrite(REAR_LEFT_PWM_FW, 0);
     analogWrite(REAR_RIGHT_PWM_FW, right_speed); 
+  }
+  if(turn_pwm == 0) {
+    stop();
   }
   Serial.print("left speed: ");
   Serial.print(left_speed);
@@ -353,29 +380,29 @@ void hold_drive(uint8_t  turn_pwm) {
   Serial.print("\n");
 }
 
-void test_drive() {
-  Serial.println("Implementing test drive....");
-  for(int i = 0; i < 255; i+=10) {
-    forward_drive(i);
-    delay(delay_time);
-  }
-  for(int i = 255; i > 0; i-=10) {
-    forward_drive(i);
-    delay(delay_time);
-  }
-  for(int i = 0; i < 255; i+=10) {
-    backward_drive(i);
-    delay(delay_time);
-  }
-  for(int i = 255; i > 0; i-=10) {
-    backward_drive(i);
-    delay(delay_time);
-  }
-}
+// void test_drive() {
+//   Serial.println("Implementing test drive....");
+//   for(int i = 0; i < 255; i+=10) {
+//     forward_drive(i);
+//     delay(delay_time);
+//   }
+//   for(int i = 255; i > 0; i-=10) {
+//     forward_drive(i);
+//     delay(delay_time);
+//   }
+//   for(int i = 0; i < 255; i+=10) {
+//     backward_drive(i);
+//     delay(delay_time);
+//   }
+//   for(int i = 255; i > 0; i-=10) {
+//     backward_drive(i);
+//     delay(delay_time);
+//   }
+// }
 
 void stop() {
-  Serial.print("Stop the car. ");
-  Serial.print("\n");
+  // Serial.print("Stop the car. ");
+  // Serial.print("\n");
 
   digitalWrite(FRONT_LEFT_EN_FW, HIGH);
   digitalWrite(FRONT_RIGHT_EN_FW, HIGH);
@@ -410,12 +437,14 @@ void throttle_steering() {
       steering_flag = true;
       steeringValue = map(steeringValue,-STEERING_TRIM,-255,0,-MAX_PWM_DUTY_CYCLE);
     } else {
-      steering_flag = false
+      steering_flag = false;
       steeringValue = 0;
     }
-    forward_drive(throttleValue, steeringValue);
+    forward_flag = true;
+    backward_flag = false;
     Serial.print("Moving forward");
     Serial.print("\t");
+    forward_drive(throttleValue, steeringValue);
   } else if(throttleValue < -THROTTLE_TRIM) {
     throttle_flag = true;
     throttleValue = map(abs(throttleValue),THROTTLE_TRIM,255,0,MAX_PWM_DUTY_CYCLE);
@@ -429,11 +458,15 @@ void throttle_steering() {
       steering_flag = false;
       steeringValue = 0;
     }
-    backward_drive(throttleValue, steeringValue);
+    backward_flag = true;
+    forward_flag = false;
     Serial.print("Moving backward");
     Serial.print("\t");
+    backward_drive(throttleValue, steeringValue);
   } else {
     throttle_flag = false;
+    forward_flag = false;
+    backward_flag = false;
     if(steeringValue > STEERING_TRIM) {
       steeringValue = map(steeringValue,STEERING_TRIM,255,0,MAX_PWM_DUTY_CYCLE);
     } else if (steeringValue < -STEERING_TRIM) {
@@ -442,40 +475,12 @@ void throttle_steering() {
       steeringValue = 0;
     }
     throttleValue = 0;
-    backward_drive(throttleValue, steeringValue);
     Serial.print("Hold on");
     Serial.print("\t");
+    hold_drive(steeringValue);
   }
 }
 
 void failsafe_handle() {
-  if(throttle_flag == true && steering_flag == true) {
-    while(left_speed > 0 || right_speed > 0) {
-      if(left_speed > 0) {
-        left_speed --;
-      }
-      if(right_speed > 0) {
-        right_speed --;
-      }
-    }
-    throttle_flag = false;
-    steering_flag = false;
-  }
-  if(steering_flag == true && throttle_flag == false) {
-    if(current_speed > 0) {
-      for(int i = current_speed; i >= 0; i--) {
-        right_drive(i);
-        delay(10);
-      }
-    } else if(current_speed < 0) {
-      for(int i = -current_speed; i >= 0; i--) {
-        left_drive(i);
-        delay(10);
-      }
-    }
-    steering_flag = false;
-  }
-  if(steering_flag == false && throttle_flag == false) {
-    stop();
-  }
+  stop();
 }

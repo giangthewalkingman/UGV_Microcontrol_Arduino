@@ -178,7 +178,7 @@ void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
   // Serial.print("\n");
   left_speed = constrain(bw_pwm + turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
   right_speed = constrain(bw_pwm - turn_pwm, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  if(turn_pwm > 0) {
+  if(turn_pwm < 0) {
     Serial.print("Turning right: ");
     Serial.print("\t");
     if(right_speed >= 0) {
@@ -206,7 +206,7 @@ void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
       analogWrite(REAR_RIGHT_PWM_FW, right_speed);
     }
   }
-  if(turn_pwm < 0) {
+  if(turn_pwm > 0) {
     Serial.print("Turning left: ");
     Serial.print("\t");
     if(left_speed >= 0) {
@@ -416,19 +416,19 @@ void stop() {
   // Serial.print("Stop the car. ");
   // Serial.print("\n");
 
-  digitalWrite(FRONT_LEFT_EN_FW, HIGH);
-  digitalWrite(FRONT_RIGHT_EN_FW, HIGH);
-  digitalWrite(FRONT_LEFT_EN_BW, HIGH);
-  digitalWrite(FRONT_RIGHT_EN_BW, HIGH);
+  digitalWrite(FRONT_LEFT_EN_FW, LOW);
+  digitalWrite(FRONT_RIGHT_EN_FW, LOW);
+  digitalWrite(FRONT_LEFT_EN_BW, LOW);
+  digitalWrite(FRONT_RIGHT_EN_BW, LOW);
   analogWrite(FRONT_LEFT_PWM_BW, 0);
   analogWrite(FRONT_RIGHT_PWM_BW, 0);
   analogWrite(FRONT_LEFT_PWM_FW, 0);
   analogWrite(FRONT_RIGHT_PWM_FW, 0);
 
-  digitalWrite(REAR_LEFT_EN_FW, HIGH);
-  digitalWrite(REAR_RIGHT_EN_FW, HIGH);
-  digitalWrite(REAR_LEFT_EN_BW, HIGH);
-  digitalWrite(REAR_RIGHT_EN_BW, HIGH);
+  digitalWrite(REAR_LEFT_EN_FW, LOW);
+  digitalWrite(REAR_RIGHT_EN_FW, LOW);
+  digitalWrite(REAR_LEFT_EN_BW, LOW);
+  digitalWrite(REAR_RIGHT_EN_BW, LOW);
   analogWrite(REAR_LEFT_PWM_BW, 0);
   analogWrite(REAR_RIGHT_PWM_BW, 0);
   analogWrite(REAR_LEFT_PWM_FW, 0);

@@ -43,6 +43,11 @@
 #define REAR_LEFT_EN_FW 47
 #define REAR_LEFT_EN_BW 49
 
+// define direction
+#define FORWARD 1
+#define BACKWARD -1
+#define STOP 0
+
 /* SBUS object, reading SBUS */
 bfs::SbusRx sbus_rx(&Serial2);
 /* SBUS object, writing SBUS */
@@ -73,7 +78,13 @@ void stop();
 void test_drive();
 void throttle();
 void steering();
+void throttle_steering();
 void failsafe_handle();
+
+////////////////////
+void left_motors(int direction, int pwm);
+void right_motors(int direction, int pwm);
+////////////////////
 
 void setup() {
   Serial.begin(9600);
@@ -184,26 +195,14 @@ void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
     if(right_speed >= 0) {
       left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
       right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
-      analogWrite(FRONT_LEFT_PWM_BW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
-      analogWrite(FRONT_LEFT_PWM_FW, 0);
-      analogWrite(FRONT_RIGHT_PWM_FW, 0);
-      analogWrite(REAR_LEFT_PWM_BW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_BW, right_speed);
-      analogWrite(REAR_LEFT_PWM_FW, 0);
-      analogWrite(REAR_RIGHT_PWM_FW, 0);
+      left_motors(BACKWARD, left_speed);
+      right_motors(BACKWARD, right_speed);
     } else {
       left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
       right_speed = constrain(right_speed, -MAX_PWM_DUTY_CYCLE, 0);
       right_speed = abs(right_speed);
-      analogWrite(FRONT_LEFT_PWM_BW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_BW, 0);
-      analogWrite(FRONT_LEFT_PWM_FW, 0);
-      analogWrite(FRONT_RIGHT_PWM_FW, right_speed);
-      analogWrite(REAR_LEFT_PWM_BW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_BW, 0);
-      analogWrite(REAR_LEFT_PWM_FW, 0);
-      analogWrite(REAR_RIGHT_PWM_FW, right_speed);
+      left_motors(BACKWARD, left_speed);
+      right_motors(FORWARD, right_speed);
     }
   }
   if(turn_pwm > 0) {
@@ -212,26 +211,14 @@ void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
     if(left_speed >= 0) {
       left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
       right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
-      analogWrite(FRONT_LEFT_PWM_BW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
-      analogWrite(FRONT_LEFT_PWM_FW, 0);
-      analogWrite(FRONT_RIGHT_PWM_FW, 0);
-      analogWrite(REAR_LEFT_PWM_BW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_BW, right_speed);
-      analogWrite(REAR_LEFT_PWM_FW, 0);
-      analogWrite(REAR_RIGHT_PWM_FW, 0);
+      left_motors(BACKWARD, left_speed);
+      right_motors(BACKWARD, right_speed);
     } else {
       left_speed = constrain(left_speed, -MAX_PWM_DUTY_CYCLE, 0);
       right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
       left_speed = abs(left_speed);
-      analogWrite(FRONT_LEFT_PWM_BW, 0);
-      analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
-      analogWrite(FRONT_LEFT_PWM_FW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_FW, 0);
-      analogWrite(REAR_LEFT_PWM_BW, 0);
-      analogWrite(REAR_RIGHT_PWM_BW, right_speed);
-      analogWrite(REAR_LEFT_PWM_FW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_FW, 0);
+      left_motors(FORWARD, left_speed);
+      right_motors(BACKWARD, right_speed);
     }
   }
   if(turn_pwm == 0) {
@@ -239,14 +226,8 @@ void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
     Serial.print("\t");
     left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
     right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
-    analogWrite(FRONT_LEFT_PWM_BW, left_speed);
-    analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
-    analogWrite(FRONT_LEFT_PWM_FW, 0);
-    analogWrite(FRONT_RIGHT_PWM_FW, 0);
-    analogWrite(REAR_LEFT_PWM_BW, left_speed);
-    analogWrite(REAR_RIGHT_PWM_BW, right_speed);
-    analogWrite(REAR_LEFT_PWM_FW, 0);
-    analogWrite(REAR_RIGHT_PWM_FW, 0);
+    left_motors(BACKWARD, left_speed);
+    left_motors(BACKWARD, right_speed);
   }
   Serial.print("left speed: ");
   Serial.print(left_speed);
@@ -279,26 +260,14 @@ void forward_drive(uint8_t fw_pwm,int32_t  turn_pwm) {
     if(right_speed >= 0) {
       left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
       right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
-      analogWrite(FRONT_LEFT_PWM_BW, 0);
-      analogWrite(FRONT_RIGHT_PWM_BW, 0);
-      analogWrite(FRONT_LEFT_PWM_FW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_FW, right_speed);
-      analogWrite(REAR_LEFT_PWM_BW, 0);
-      analogWrite(REAR_RIGHT_PWM_BW, 0);
-      analogWrite(REAR_LEFT_PWM_FW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_FW, right_speed);
+      left_motors(FORWARD, left_speed);
+      right_motors(FORWARD, right_speed);
     } else {
       left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
       right_speed = constrain(right_speed, -MAX_PWM_DUTY_CYCLE, 0);
       right_speed = abs(right_speed);
-      analogWrite(FRONT_LEFT_PWM_BW, 0);
-      analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
-      analogWrite(FRONT_LEFT_PWM_FW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_FW, 0);
-      analogWrite(REAR_LEFT_PWM_BW, 0);
-      analogWrite(REAR_RIGHT_PWM_BW, right_speed);
-      analogWrite(REAR_LEFT_PWM_FW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_FW, 0);
+      left_motors(FORWARD, left_speed);
+      right_motors(BACKWARD, right_speed);
     }
   }
   if(turn_pwm < 0) {
@@ -307,26 +276,14 @@ void forward_drive(uint8_t fw_pwm,int32_t  turn_pwm) {
     if(left_speed >= 0) {
       left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
       right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
-      analogWrite(FRONT_LEFT_PWM_BW, 0);
-      analogWrite(FRONT_RIGHT_PWM_BW, 0);
-      analogWrite(FRONT_LEFT_PWM_FW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_FW, right_speed);
-      analogWrite(REAR_LEFT_PWM_BW, 0);
-      analogWrite(REAR_RIGHT_PWM_BW, 0);
-      analogWrite(REAR_LEFT_PWM_FW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_FW, right_speed);
+      left_motors(FORWARD, left_speed);
+      right_motors(FORWARD, right_speed);
     } else {
       left_speed = constrain(left_speed, -MAX_PWM_DUTY_CYCLE, 0);
       right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
       left_speed = abs(left_speed);
-      analogWrite(FRONT_LEFT_PWM_BW, left_speed);
-      analogWrite(FRONT_RIGHT_PWM_BW, 0);
-      analogWrite(FRONT_LEFT_PWM_FW, 0);
-      analogWrite(FRONT_RIGHT_PWM_FW, right_speed);
-      analogWrite(REAR_LEFT_PWM_BW, left_speed);
-      analogWrite(REAR_RIGHT_PWM_BW, 0);
-      analogWrite(REAR_LEFT_PWM_FW, 0);
-      analogWrite(REAR_RIGHT_PWM_FW, right_speed);
+      left_motors(BACKWARD, left_speed);
+      right_motors(FORWARD, right_speed);
     }
   }
   if(turn_pwm == 0) {
@@ -334,14 +291,8 @@ void forward_drive(uint8_t fw_pwm,int32_t  turn_pwm) {
     Serial.print("\t");
     left_speed = constrain(left_speed, 0, MAX_PWM_DUTY_CYCLE);
     right_speed = constrain(right_speed, 0, MAX_PWM_DUTY_CYCLE);
-    analogWrite(FRONT_LEFT_PWM_BW, 0);
-    analogWrite(FRONT_RIGHT_PWM_BW, 0);
-    analogWrite(FRONT_LEFT_PWM_FW, left_speed);
-    analogWrite(FRONT_RIGHT_PWM_FW, right_speed);
-    analogWrite(REAR_LEFT_PWM_BW, 0);
-    analogWrite(REAR_RIGHT_PWM_BW, 0);
-    analogWrite(REAR_LEFT_PWM_FW, left_speed);
-    analogWrite(REAR_RIGHT_PWM_FW, right_speed);
+    left_motors(FORWARD, left_speed);
+    right_motors(FORWARD, right_speed);
   }
   Serial.print("left speed: ");
   Serial.print(left_speed);
@@ -361,24 +312,12 @@ void hold_drive(int32_t  turn_pwm) {
   left_speed = constrain(abs(turn_pwm), 0, MAX_PWM_DUTY_CYCLE);
   right_speed = constrain(abs(turn_pwm), 0, MAX_PWM_DUTY_CYCLE);
   if(turn_pwm > 0) {
-    analogWrite(FRONT_LEFT_PWM_BW, 0);
-    analogWrite(FRONT_RIGHT_PWM_BW, right_speed);
-    analogWrite(FRONT_LEFT_PWM_FW, left_speed);
-    analogWrite(FRONT_RIGHT_PWM_FW, 0);
-    analogWrite(REAR_LEFT_PWM_BW, 0);
-    analogWrite(REAR_RIGHT_PWM_BW, right_speed);
-    analogWrite(REAR_LEFT_PWM_FW, left_speed);
-    analogWrite(REAR_RIGHT_PWM_FW, 0);   
+    left_motors(FORWARD, left_speed);
+    right_motors(BACKWARD, right_speed); 
   } 
   if(turn_pwm < 0) {
-    analogWrite(FRONT_LEFT_PWM_BW, left_speed);
-    analogWrite(FRONT_RIGHT_PWM_BW, 0);
-    analogWrite(FRONT_LEFT_PWM_FW, 0);
-    analogWrite(FRONT_RIGHT_PWM_FW, right_speed);
-    analogWrite(REAR_LEFT_PWM_BW, left_speed);
-    analogWrite(REAR_RIGHT_PWM_BW, 0);
-    analogWrite(REAR_LEFT_PWM_FW, 0);
-    analogWrite(REAR_RIGHT_PWM_FW, right_speed); 
+    left_motors(BACKWARD, left_speed);
+    right_motors(FORWARD, right_speed);
   }
   if(turn_pwm == 0) {
     stop();
@@ -415,24 +354,8 @@ void hold_drive(int32_t  turn_pwm) {
 void stop() {
   // Serial.print("Stop the car. ");
   // Serial.print("\n");
-
-  digitalWrite(FRONT_LEFT_EN_FW, LOW);
-  digitalWrite(FRONT_RIGHT_EN_FW, LOW);
-  digitalWrite(FRONT_LEFT_EN_BW, LOW);
-  digitalWrite(FRONT_RIGHT_EN_BW, LOW);
-  analogWrite(FRONT_LEFT_PWM_BW, 0);
-  analogWrite(FRONT_RIGHT_PWM_BW, 0);
-  analogWrite(FRONT_LEFT_PWM_FW, 0);
-  analogWrite(FRONT_RIGHT_PWM_FW, 0);
-
-  digitalWrite(REAR_LEFT_EN_FW, LOW);
-  digitalWrite(REAR_RIGHT_EN_FW, LOW);
-  digitalWrite(REAR_LEFT_EN_BW, LOW);
-  digitalWrite(REAR_RIGHT_EN_BW, LOW);
-  analogWrite(REAR_LEFT_PWM_BW, 0);
-  analogWrite(REAR_RIGHT_PWM_BW, 0);
-  analogWrite(REAR_LEFT_PWM_FW, 0);
-  analogWrite(REAR_RIGHT_PWM_FW, 0);
+  left_motors(STOP, 0);
+  right_motors(STOP, 0);
 }
 
 // Function to control the car's speed proportional to the throttle value received from channel
@@ -492,6 +415,80 @@ void throttle_steering() {
     Serial.print("Hold on");
     Serial.print("\t");
     hold_drive(steeringValue);
+  }
+}
+
+void left_motors(int direction, int pwm) {
+  switch (direction) {
+    case FORWARD:
+    digitalWrite(FRONT_LEFT_EN_FW, HIGH);
+    digitalWrite(FRONT_LEFT_EN_BW, HIGH);
+    digitalWrite(REAR_LEFT_EN_FW, HIGH);
+    digitalWrite(REAR_LEFT_EN_BW, HIGH);
+    analogWrite(FRONT_LEFT_PWM_BW, 0);
+    analogWrite(FRONT_LEFT_PWM_FW, pwm);
+    analogWrite(REAR_LEFT_PWM_BW, 0);
+    analogWrite(REAR_LEFT_PWM_FW, pwm);
+    break;
+    case BACKWARD:
+    digitalWrite(FRONT_LEFT_EN_FW, HIGH);
+    digitalWrite(FRONT_LEFT_EN_BW, HIGH);
+    digitalWrite(REAR_LEFT_EN_FW, HIGH);
+    digitalWrite(REAR_LEFT_EN_BW, HIGH);
+    analogWrite(FRONT_LEFT_PWM_BW, pwm);
+    analogWrite(FRONT_LEFT_PWM_FW, 0);
+    analogWrite(REAR_LEFT_PWM_BW, pwm);
+    analogWrite(REAR_LEFT_PWM_FW, 0);
+    break;
+    case STOP:
+    digitalWrite(FRONT_LEFT_EN_FW, LOW);
+    digitalWrite(FRONT_LEFT_EN_BW, LOW);
+    digitalWrite(REAR_LEFT_EN_FW, LOW);
+    digitalWrite(REAR_LEFT_EN_BW, LOW);
+    analogWrite(FRONT_LEFT_PWM_BW, 0);
+    analogWrite(FRONT_LEFT_PWM_FW, 0);
+    analogWrite(REAR_LEFT_PWM_BW, 0);
+    analogWrite(REAR_LEFT_PWM_FW, 0);
+    break;
+    default:
+    break;
+  }
+}
+
+void right_motors(int direction, int pwm) {
+  switch (direction) {
+    case FORWARD:
+    digitalWrite(FRONT_RIGHT_EN_FW, HIGH);
+    digitalWrite(FRONT_RIGHT_EN_BW, HIGH);
+    digitalWrite(REAR_RIGHT_EN_FW, HIGH);
+    digitalWrite(REAR_RIGHT_EN_BW, HIGH);
+    analogWrite(FRONT_RIGHT_PWM_BW, 0);
+    analogWrite(FRONT_RIGHT_PWM_FW, pwm);
+    analogWrite(REAR_RIGHT_PWM_BW, 0);
+    analogWrite(REAR_RIGHT_PWM_FW, pwm);
+    break;
+    case BACKWARD:
+    digitalWrite(FRONT_RIGHT_EN_FW, HIGH);
+    digitalWrite(FRONT_RIGHT_EN_BW, HIGH);
+    digitalWrite(REAR_RIGHT_EN_FW, HIGH);
+    digitalWrite(REAR_RIGHT_EN_BW, HIGH);
+    analogWrite(FRONT_RIGHT_PWM_BW, pwm);
+    analogWrite(FRONT_RIGHT_PWM_FW, 0);
+    analogWrite(REAR_RIGHT_PWM_BW, pwm);
+    analogWrite(REAR_RIGHT_PWM_FW, 0);
+    break;
+    case STOP:
+    digitalWrite(FRONT_RIGHT_EN_FW, LOW);
+    digitalWrite(FRONT_RIGHT_EN_BW, LOW);
+    digitalWrite(REAR_RIGHT_EN_FW, LOW);
+    digitalWrite(REAR_RIGHT_EN_BW, LOW);
+    analogWrite(FRONT_RIGHT_PWM_BW, 0);
+    analogWrite(FRONT_RIGHT_PWM_FW, 0);
+    analogWrite(REAR_RIGHT_PWM_BW, 0);
+    analogWrite(REAR_RIGHT_PWM_FW, 0);
+    break;
+    default:
+    break;
   }
 }
 

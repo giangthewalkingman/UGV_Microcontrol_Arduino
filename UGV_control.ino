@@ -54,8 +54,15 @@ bfs::SbusTx sbus_tx(&Serial2);
 /* SBUS data */
 bfs::SbusData data;
 
+// constants
 const int delay_time = 1000;
-const float scale_speed = 1.7 + 0.0;
+/*********************************************************scale speed**************************************************************/
+const float D_front_to_rear = 46.0; //distance from front wheel to rear wheel
+const float r_rear_rotation = 16.0; //the radius of the circle that rear wheels go around when rear wheels making a 0 radius turn 
+const float scale_speed = (D_front_to_rear/r_rear_rotation + 1.0) + 0.0; // scale_speed = theoretical_scale_speed + practical_error
+/**********************************************************************************************************************************/
+
+// variables
 bool arm_flag = false;
 bool throttle_flag = false;
 bool steering_flag = false;

@@ -46,6 +46,7 @@
 #define BACKWARD -1
 #define STOP 0
 
+
 /* SBUS object, reading SBUS */
 bfs::SbusRx sbus_rx(&Serial2);
 /* SBUS object, writing SBUS */
@@ -54,6 +55,7 @@ bfs::SbusTx sbus_tx(&Serial2);
 bfs::SbusData data;
 
 const int delay_time = 1000;
+const float scale_speed = 1.7 + 0.0;
 bool arm_flag = false;
 bool throttle_flag = false;
 bool steering_flag = false;
@@ -421,7 +423,7 @@ void left_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(REAR_LEFT_EN_FW, HIGH);
     digitalWrite(REAR_LEFT_EN_BW, HIGH);
     analogWrite(FRONT_LEFT_PWM_BW, 0);
-    analogWrite(FRONT_LEFT_PWM_FW, pwm);
+    analogWrite(FRONT_LEFT_PWM_FW, pwm*scale_speed);
     analogWrite(REAR_LEFT_PWM_BW, 0);
     analogWrite(REAR_LEFT_PWM_FW, pwm);
     break;
@@ -430,16 +432,16 @@ void left_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(FRONT_LEFT_EN_BW, HIGH);
     digitalWrite(REAR_LEFT_EN_FW, HIGH);
     digitalWrite(REAR_LEFT_EN_BW, HIGH);
-    analogWrite(FRONT_LEFT_PWM_BW, pwm);
+    analogWrite(FRONT_LEFT_PWM_BW, pwm*scale_speed);
     analogWrite(FRONT_LEFT_PWM_FW, 0);
     analogWrite(REAR_LEFT_PWM_BW, pwm);
     analogWrite(REAR_LEFT_PWM_FW, 0);
     break;
     case STOP:
-    digitalWrite(FRONT_LEFT_EN_FW, LOW);
-    digitalWrite(FRONT_LEFT_EN_BW, LOW);
-    digitalWrite(REAR_LEFT_EN_FW, LOW);
-    digitalWrite(REAR_LEFT_EN_BW, LOW);
+    digitalWrite(FRONT_LEFT_EN_FW, HIGH);
+    digitalWrite(FRONT_LEFT_EN_BW, HIGH);
+    digitalWrite(REAR_LEFT_EN_FW, HIGH);
+    digitalWrite(REAR_LEFT_EN_BW, HIGH);
     analogWrite(FRONT_LEFT_PWM_BW, 0);
     analogWrite(FRONT_LEFT_PWM_FW, 0);
     analogWrite(REAR_LEFT_PWM_BW, 0);
@@ -458,7 +460,7 @@ void right_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(REAR_RIGHT_EN_FW, HIGH);
     digitalWrite(REAR_RIGHT_EN_BW, HIGH);
     analogWrite(FRONT_RIGHT_PWM_BW, 0);
-    analogWrite(FRONT_RIGHT_PWM_FW, pwm);
+    analogWrite(FRONT_RIGHT_PWM_FW, pwm*scale_speed);
     analogWrite(REAR_RIGHT_PWM_BW, 0);
     analogWrite(REAR_RIGHT_PWM_FW, pwm);
     break;
@@ -467,16 +469,16 @@ void right_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(FRONT_RIGHT_EN_BW, HIGH);
     digitalWrite(REAR_RIGHT_EN_FW, HIGH);
     digitalWrite(REAR_RIGHT_EN_BW, HIGH);
-    analogWrite(FRONT_RIGHT_PWM_BW, pwm);
+    analogWrite(FRONT_RIGHT_PWM_BW, pwm*scale_speed);
     analogWrite(FRONT_RIGHT_PWM_FW, 0);
     analogWrite(REAR_RIGHT_PWM_BW, pwm);
     analogWrite(REAR_RIGHT_PWM_FW, 0);
     break;
     case STOP:
-    digitalWrite(FRONT_RIGHT_EN_FW, LOW);
-    digitalWrite(FRONT_RIGHT_EN_BW, LOW);
-    digitalWrite(REAR_RIGHT_EN_FW, LOW);
-    digitalWrite(REAR_RIGHT_EN_BW, LOW);
+    digitalWrite(FRONT_RIGHT_EN_FW, HIGH);
+    digitalWrite(FRONT_RIGHT_EN_BW, HIGH);
+    digitalWrite(REAR_RIGHT_EN_FW, HIGH);
+    digitalWrite(REAR_RIGHT_EN_BW, HIGH);
     analogWrite(FRONT_RIGHT_PWM_BW, 0);
     analogWrite(FRONT_RIGHT_PWM_FW, 0);
     analogWrite(REAR_RIGHT_PWM_BW, 0);

@@ -1,5 +1,5 @@
 // #include <SBUS.h>
-#include <sbus.h> //ch1: throttle, ch2: steer, ch6: arm. ch7: kill
+#include <sbus.h> //ch1: throttle, ch2: steer, ch6: arm. ch7: kill, 
 
 
 // Define channels to control the car
@@ -430,7 +430,7 @@ void left_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(REAR_LEFT_EN_FW, HIGH);
     digitalWrite(REAR_LEFT_EN_BW, HIGH);
     analogWrite(FRONT_LEFT_PWM_BW, 0);
-    analogWrite(FRONT_LEFT_PWM_FW, pwm*scale_speed);
+    analogWrite(FRONT_LEFT_PWM_FW, pwm);
     analogWrite(REAR_LEFT_PWM_BW, 0);
     analogWrite(REAR_LEFT_PWM_FW, pwm);
     break;
@@ -439,7 +439,7 @@ void left_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(FRONT_LEFT_EN_BW, HIGH);
     digitalWrite(REAR_LEFT_EN_FW, HIGH);
     digitalWrite(REAR_LEFT_EN_BW, HIGH);
-    analogWrite(FRONT_LEFT_PWM_BW, pwm*scale_speed);
+    analogWrite(FRONT_LEFT_PWM_BW, pwm);
     analogWrite(FRONT_LEFT_PWM_FW, 0);
     analogWrite(REAR_LEFT_PWM_BW, pwm);
     analogWrite(REAR_LEFT_PWM_FW, 0);
@@ -467,7 +467,7 @@ void right_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(REAR_RIGHT_EN_FW, HIGH);
     digitalWrite(REAR_RIGHT_EN_BW, HIGH);
     analogWrite(FRONT_RIGHT_PWM_BW, 0);
-    analogWrite(FRONT_RIGHT_PWM_FW, pwm*scale_speed);
+    analogWrite(FRONT_RIGHT_PWM_FW, pwm);
     analogWrite(REAR_RIGHT_PWM_BW, 0);
     analogWrite(REAR_RIGHT_PWM_FW, pwm);
     break;
@@ -476,7 +476,7 @@ void right_motors(int8_t mode, uint8_t pwm) {
     digitalWrite(FRONT_RIGHT_EN_BW, HIGH);
     digitalWrite(REAR_RIGHT_EN_FW, HIGH);
     digitalWrite(REAR_RIGHT_EN_BW, HIGH);
-    analogWrite(FRONT_RIGHT_PWM_BW, pwm*scale_speed);
+    analogWrite(FRONT_RIGHT_PWM_BW, pwm);
     analogWrite(FRONT_RIGHT_PWM_FW, 0);
     analogWrite(REAR_RIGHT_PWM_BW, pwm);
     analogWrite(REAR_RIGHT_PWM_FW, 0);

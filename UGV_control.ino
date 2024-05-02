@@ -69,7 +69,6 @@ bool arm_flag = false;
 bool throttle_flag = false;
 bool steering_flag = false;
 uint32_t current_speed = 0;
-uint8_t rc_flag = 0;
 int32_t left_speed = 0;
 int32_t right_speed = 0;
 
@@ -78,6 +77,7 @@ bool backward_flag = false;
 bool hold_flag = false;
 bool left_flag = false;
 bool right_flag = false;
+bool rc_flag = false;
 
 void forward_drive(uint8_t fw_pwm,int32_t  turn_pwm);
 void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm);
@@ -93,38 +93,13 @@ void right_motors(int8_t mode, uint8_t pwm);
 void RCdrive();
 
 /*--------------------------------------------I2C Comm-------------------------------*/
-void receiveData(int bytecount);
+void receiveData(int byteCount);
 void sendData();
 void I2CDrive();
 byte data_to_echo = 0;
-uint8_t I2C_right_front_pwm;
-uint8_t I2C_left_front_pwm;
-uint8_t I2C_right_back_pwm;
-uint8_t I2C_left_back_pwm;
-uint8_t I2C_direction;
-#define I2C_FORWARD 15
-#define I2C_BACKWARD 0
-#define I2C_TURNLEFT 10
-#define I2C_TURNRIGHT 5
-#define I2C_STOP 17
-
-// direction rule: rf-lf-rb-lb, 1=forward, 0=backward
-// 0000 = 0     -> backward
-// 0001
-// 0010
-// 0100
-// 1000
-// 0011
-// 0110
-// 1100
-// 1001
-// 1010 = 10    -> turn left
-// 0101 = 5     -> turn right
-// 0111
-// 1110
-// 1101
-// 1011
-// 1111 = 15    -> forward
+uint8_t I2C_throttle_pwm;
+uint8_t I2C_steering_pwm;
+bool i2c_flag = false;
 
 void setup() {
   Serial.begin(9600);
@@ -181,21 +156,7 @@ void loop() {
   //     sbus_tx.Write();
   //   }
   // }
-  // while(1) {
-  //     sbus_rx.Read();
-  //     data = sbus_rx.data();
-  //     for (int8_t i = 0; i < data.NUM_CH; i++) {
-  //       // Serial.print(data.ch[i]);
-  //       Serial.print(sbus_rx.data().ch[i]);
-  //       Serial.print("\t");
-  //     }
-  //        /* Display lost frames and failsafe data */
-  //     Serial.print(data.lost_frame);
-  //     Serial.print("\t");
-  //     Serial.println(data.failsafe);
-  // }
-
-
+  I2CDrive();
 }
 
 void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
@@ -376,8 +337,16 @@ void stop() {
 
 // Function to control the car's speed proportional to the throttle value received from channel
 void throttle_steering() {
-  int32_t throttleValue = map(sbus_rx.data().ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  int32_t steeringValue = map(sbus_rx.data().ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
+  int32_t throttleValue;
+  int32_t steeringValue;
+  if(rc_flag == true) {
+    throttleValue = map(sbus_rx.data().ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
+    steeringValue = map(sbus_rx.data().ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
+  }
+  if(i2c_flag == true) {
+    throttleValue = map(I2C_throttle_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
+    steeringValue = map(I2C_steering_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
+  }
   if(throttleValue > THROTTLE_TRIM) {
     throttle_flag = true;
     throttleValue = map(throttleValue,THROTTLE_TRIM,255,0,MAX_PWM_DUTY_CYCLE);
@@ -549,40 +518,27 @@ void failsafe_handle() {
 
 /*-----------------------------------------------I2C Comm----------------------------------------------------------------------*/
 
-void receiveEvent(int byteCount) {
-  if (byteCount >= 5) { // Make sure we have received at least 5 bytes
-    uint8_t receivedData[5];
-    for (int i = 0; i < 5; i++) {
-      receivedData[i] = Wire.read();
+void receiveData(int byteCount) {
+  static uint8_t receivedData[2]; // Static array to store received data
+  static int count = 0; // Counter to track received bytes
+  
+  if (byteCount >= 2) { // Make sure we have received at least 2 bytes
+    for (int i = 0; i < 2; i++) {
+      receivedData[count] = Wire.read();
+      count++;
+      if (count == 2) { // If 2 bytes received, reset count and process data
+        I2C_throttle_pwm = receivedData[0];
+        I2C_steering_pwm = receivedData[1];
+        // Reset count for the next transmission
+        count = 0;
+      }
     }
   }
-  uint8_t I2C_right_front_pwm = receivedData[0];
-  uint8_t I2C_left_front_pwm = receivedData[1];
-  uint8_t I2C_right_back_pwm = receivedData[2];
-  uint8_t I2C_left_back_pwm = receivedData[3];
-  uint8_t I2C_direction = receivedData[4];
 }
-
 void I2CDrive() {
   while(1) {
-    switch (I2C_direction) 
-    {
-    case I2C_FORWARD:
-      forward_drive(I2C_right_front_pwm, 0);
-      break;
-    case I2C_BACKWARD:
-      backward_drive(I2C_right_front_pwm, 0);
-      break;
-    case I2C_TURNRIGHT:
-      hold_drive(I2C_right_front_pwm);
-      break;
-    case I2C_TURNLEFT:
-      hold_drive(-I2C_right_front_pwm);
-      break;
-    case I2C_STOP:
-      forward_drive(I2C_right_front_pwm, 0);
-      break;
-    }
+    receiveData(Wire.available());
+    throttle_steering();
   }
 }
 

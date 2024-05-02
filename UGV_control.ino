@@ -1,5 +1,6 @@
 // #include <SBUS.h>
 #include <sbus.h> //ch1: throttle, ch2: steer, ch6: arm. ch7: kill, 
+#include <Wire.h>
 
 
 // Define channels to control the car
@@ -46,6 +47,7 @@
 #define BACKWARD -1
 #define STOP 0
 
+#define SLAVE_ADDRESS 0x08
 
 /* SBUS object, reading SBUS */
 bfs::SbusRx sbus_rx(&Serial2);
@@ -88,6 +90,41 @@ void steering();
 void failsafe_handle();
 void left_motors(int8_t mode, uint8_t pwm);
 void right_motors(int8_t mode, uint8_t pwm);
+void RCdrive();
+
+/*--------------------------------------------I2C Comm-------------------------------*/
+void receiveData(int bytecount);
+void sendData();
+void I2CDrive();
+byte data_to_echo = 0;
+uint8_t I2C_right_front_pwm;
+uint8_t I2C_left_front_pwm;
+uint8_t I2C_right_back_pwm;
+uint8_t I2C_left_back_pwm;
+uint8_t I2C_direction;
+#define I2C_FORWARD 15
+#define I2C_BACKWARD 0
+#define I2C_TURNLEFT 10
+#define I2C_TURNRIGHT 5
+#define I2C_STOP 17
+
+// direction rule: rf-lf-rb-lb, 1=forward, 0=backward
+// 0000 = 0     -> backward
+// 0001
+// 0010
+// 0100
+// 1000
+// 0011
+// 0110
+// 1100
+// 1001
+// 1010 = 10    -> turn left
+// 0101 = 5     -> turn right
+// 0111
+// 1110
+// 1101
+// 1011
+// 1111 = 15    -> forward
 
 void setup() {
   Serial.begin(9600);
@@ -113,6 +150,12 @@ void setup() {
   digitalWrite(REAR_RIGHT_EN_FW, HIGH);
   digitalWrite(REAR_LEFT_EN_BW, HIGH);
   digitalWrite(REAR_RIGHT_EN_BW, HIGH);
+
+  //I2C Setup
+  Wire.begin(SLAVE_ADDRESS);
+  Wire.onReceive(receiveData);
+  Wire.setClock(100000);
+  // Wire.onRequest(sendData);
 }
 
 
@@ -151,38 +194,7 @@ void loop() {
   //     Serial.print("\t");
   //     Serial.println(data.failsafe);
   // }
-  while(1) {
-    sbus_rx.Read();
-    /* Grab the received data */
-    // data = sbus_rx.data();
-      // for (int8_t i = 0; i < data.NUM_CH; i++) {
-      //   Serial.print(data.ch[i]);
-      //   Serial.print("\t");
-      // }
-    if(sbus_rx.data().failsafe == 0) {
-      Serial.print("\n");
-      Serial.println("Acquired RC signal, ready to arm...");
-      // while(!(sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM));
-      while(!(sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM)) {
-        arm_flag = false;
-        sbus_rx.Read();
-      }
-      Serial.println("Arming...");
-      arm_flag = true;
-      while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM) {
-        sbus_rx.Read();
-        throttle_steering();
-      }
-      while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] < SBUS_ARM_TRIM) {
-        sbus_rx.Read();
-        stop();
-        Serial.println("Disarmed");
-      }
-    } else if(sbus_rx.data().failsafe == 1) {
-      Serial.println("Lost RC signal");
-      failsafe_handle();
-    }
-  }
+
 
 }
 
@@ -496,6 +508,87 @@ void right_motors(int8_t mode, uint8_t pwm) {
   }
 }
 
+void RCdrive() {
+  while(1) {
+    sbus_rx.Read();
+    /* Grab the received data */
+    // data = sbus_rx.data();
+      // for (int8_t i = 0; i < data.NUM_CH; i++) {
+      //   Serial.print(data.ch[i]);
+      //   Serial.print("\t");
+      // }
+    if(sbus_rx.data().failsafe == 0) {
+      Serial.print("\n");
+      Serial.println("Acquired RC signal, ready to arm...");
+      // while(!(sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM));
+      while(!(sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM)) {
+        arm_flag = false;
+        sbus_rx.Read();
+      }
+      Serial.println("Arming...");
+      arm_flag = true;
+      while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM) {
+        sbus_rx.Read();
+        throttle_steering();
+      }
+      while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] < SBUS_ARM_TRIM) {
+        sbus_rx.Read();
+        stop();
+        Serial.println("Disarmed");
+      }
+    } else if(sbus_rx.data().failsafe == 1) {
+      Serial.println("Lost RC signal");
+      failsafe_handle();
+    }
+  }
+}
+
 void failsafe_handle() {
   stop();
+}
+
+/*-----------------------------------------------I2C Comm----------------------------------------------------------------------*/
+
+void receiveEvent(int byteCount) {
+  if (byteCount >= 5) { // Make sure we have received at least 5 bytes
+    uint8_t receivedData[5];
+    for (int i = 0; i < 5; i++) {
+      receivedData[i] = Wire.read();
+    }
+  }
+  uint8_t I2C_right_front_pwm = receivedData[0];
+  uint8_t I2C_left_front_pwm = receivedData[1];
+  uint8_t I2C_right_back_pwm = receivedData[2];
+  uint8_t I2C_left_back_pwm = receivedData[3];
+  uint8_t I2C_direction = receivedData[4];
+}
+
+void I2CDrive() {
+  while(1) {
+    switch (I2C_direction) 
+    {
+    case I2C_FORWARD:
+      forward_drive(I2C_right_front_pwm, 0);
+      break;
+    case I2C_BACKWARD:
+      backward_drive(I2C_right_front_pwm, 0);
+      break;
+    case I2C_TURNRIGHT:
+      hold_drive(I2C_right_front_pwm);
+      break;
+    case I2C_TURNLEFT:
+      hold_drive(-I2C_right_front_pwm);
+      break;
+    case I2C_STOP:
+      forward_drive(I2C_right_front_pwm, 0);
+      break;
+    }
+  }
+}
+
+
+
+void sendData()
+{
+  Wire.write(data_to_echo);
 }

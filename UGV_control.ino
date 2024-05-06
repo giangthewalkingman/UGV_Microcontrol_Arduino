@@ -100,7 +100,7 @@ void I2CDrive();
 byte data_to_echo = 0;
 uint8_t I2C_throttle_pwm;
 uint8_t I2C_steering_pwm;
-bool i2c_flag = true;
+bool i2c_flag = false;
 
 void setup() {
   Serial.begin(9600);
@@ -136,8 +136,15 @@ void setup() {
 
 
 void loop() {
-  // I2CDrive();
-
+  while(1) {
+    Serial.println("Waiting for I2C communication");
+    if(i2c_flag == true) {
+      Serial.println("Gained I2C communication");
+      delay(1000);
+      break;
+    }
+  }
+  I2CDrive();
 }
 
 void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
@@ -318,12 +325,12 @@ void stop() {
 
 // Function to control the car's speed proportional to the throttle value received from channel
 void throttle_steering() {
-  int32_t throttleValue;
-  int32_t steeringValue;
-  // if(rc_flag == true) {
-  //   throttleValue = map(sbus_rx.data().ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
-  //   steeringValue = map(sbus_rx.data().ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
-  // }
+  int32_t throttleValue = 0;
+  int32_t steeringValue = 0;
+  if(rc_flag == true) {
+    throttleValue = map(sbus_rx.data().ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
+    steeringValue = map(sbus_rx.data().ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
+  }
   if(i2c_flag == true) {
     throttleValue = map(I2C_throttle_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
     steeringValue = map(I2C_steering_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
@@ -511,6 +518,7 @@ void receiveData(int byteCount) {
   //   Serial.print("\t");
   //   Serial.println(I2C_steering_pwm);
   // }
+  i2c_flag = true;
   for(int i = 0; i < byteCount; i++) {
     receivedData[0] = Wire.read();
     receivedData[1] = Wire.read();

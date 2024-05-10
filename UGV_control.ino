@@ -94,13 +94,13 @@ void RCdrive();
 
 /*--------------------------------------------I2C Comm-------------------------------*/
 void receiveData(int byteCount);
-byte receivedData[2];
+byte receivedData[3];
 void sendData();
 void I2CDrive();
 byte data_to_echo = 0;
 uint8_t I2C_throttle_pwm;
 uint8_t I2C_steering_pwm;
-bool i2c_flag = false;
+bool I2C_flag = false;
 
 void setup() {
   Serial.begin(9600);
@@ -138,7 +138,7 @@ void setup() {
 void loop() {
   while(1) {
     Serial.println("Waiting for I2C communication");
-    if(i2c_flag == true) {
+    if(I2C_flag == true) {
       Serial.println("Gained I2C communication");
       delay(1000);
       break;
@@ -331,10 +331,12 @@ void throttle_steering() {
     throttleValue = map(sbus_rx.data().ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
     steeringValue = map(sbus_rx.data().ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
   }
-  if(i2c_flag == true) {
+  if(I2C_flag == true) {
     throttleValue = map(I2C_throttle_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
     steeringValue = map(I2C_steering_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
-
+  } else {
+    throttleValue = 0;
+    steeringValue = 0;
   }
   if(throttleValue > THROTTLE_TRIM) {
     throttle_flag = true;
@@ -467,7 +469,7 @@ void right_motors(int8_t mode, uint8_t pwm) {
 }
 
 void RCdrive() {
-  i2c_flag  = false;
+  I2C_flag  = false;
   rc_flag  = true;
   while(1) {
     sbus_rx.Read();
@@ -510,40 +512,28 @@ void failsafe_handle() {
 /*-----------------------------------------------I2C Comm----------------------------------------------------------------------*/
 
 void receiveData(int byteCount) {
-  // for(int i = 0; i < byteCount; i++) {
-  //   I2C_throttle_pwm  = Wire.read();
-  //   I2C_steering_pwm = Wire.read();
-  //   Serial.println(byteCount);
-  //   Serial.print(I2C_throttle_pwm);
-  //   Serial.print("\t");
-  //   Serial.println(I2C_steering_pwm);
-  // }
-  i2c_flag = true;
+  // I2C_flag = true;
   for(int i = 0; i < byteCount; i++) {
     receivedData[0] = Wire.read();
     receivedData[1] = Wire.read();
-    // Serial.print(receivedData[0]);
-    // Serial.print("\t");
-    // Serial.println(receivedData[1]);
-    // Serial.println(!((receivedData[0] == 255) && (receivedData[1] == 255)));
-    if(!((receivedData[0] == 255) && (receivedData[1] == 255))) {
-      I2C_throttle_pwm = receivedData[0];
-      I2C_steering_pwm = receivedData[1];
+    receivedData[2] = Wire.read();
+    if(!((receivedData[0] == 255) && (receivedData[1] == 255) && (receivedData[2] == 255))) {
+      I2C_flag = receivedData[0] & 0x01;
+      I2C_throttle_pwm = receivedData[1];
+      I2C_steering_pwm = receivedData[2];
     }
   }
-  // if(!((receivedData[0] == 255) && (receivedData[1] == 255))) {
-  //   I2C_throttle_pwm = receivedData[0];
-  //   I2C_steering_pwm = receivedData[1];
-  // }
-  Serial.print(I2C_throttle_pwm);
-  Serial.print("\t");
-  Serial.println(I2C_steering_pwm);
+  // Serial.print(I2C_flag);
+  // Serial.print("\t");
+  // Serial.print(I2C_throttle_pwm);
+  // Serial.print("\t");
+  // Serial.println(I2C_steering_pwm);
   // Serial.print(receivedData[0]);
   // Serial.print("\t");
   // Serial.println(receivedData[1]);
 }
 void I2CDrive() {
-  i2c_flag = true;
+  // I2C_flag = true;
   rc_flag = false;
   while(1) {
     // receiveData(Wire.available());

@@ -1,5 +1,5 @@
 // #include <SBUS.h>
-#include <sbus.h> //ch1: throttle, ch2: steer, ch6: arm. ch7: kill, 
+#include <sbus.h> //ch0: throttle, ch1: steer, ch4: mode, ch5: arm. ch6: kill, ch7: check sbus signal
 #include <Wire.h>
 
 
@@ -7,6 +7,9 @@
 #define THROTTLE_CHANNEL_INDEX 0
 #define STEERING_CHANNEL_INDEX 1
 #define ARM_CHANNEL_INDEX 5
+#define MODE_CHANNEL_INDEX 4
+#define KILL_CHANNEL_INDEX 6
+#define CHECK_CHANNEL_INDEX 7
 // Define the maximum and minimum values for the SBUS channels (throttle and steering)
 //trim ch1: 1481
 //trim ch2: 1503
@@ -18,12 +21,21 @@
 #define SBUS_THROTTLE_TRIM 1001
 #define SBUS_STEERING_MIN  182
 #define SBUS_STEERING_MAX  1811
-#define SBUS_THROTTLE_TRIM 1001
+#define SBUS_MODE_MANUAL 172
+#define SBUS_MODE_MISSION 992
+#define SBUS_MODE_OFFBOARD 1811
+#define SBUS_KILL_DISABLE 172
+#define SBUS_KILL_TRIM 992
+#define SBUS_KILL_ENABLE 1811
+#define SBUS_CHECK_DISABLE 172
+#define SBUS_CHECK_TRIM 992
+#define SBUS_CHECK_ENABLE 1811
+
 // Define the maximum PWM duty cycle for motor control
 #define MAX_PWM_DUTY_CYCLE 225
 #define MIN_PWM_DUTY_CYCLE 0
-#define THROTTLE_TRIM 25 //apprxmly 1/10 duty cycle
-#define STEERING_TRIM 12 //apprxmly 1/2 throttle trim
+#define THROTTLE_TRIM 5 //apprxmly 1/10 duty cycle
+#define STEERING_TRIM 2 //apprxmly 1/2 throttle trim
 
 // define pins to connect to the motor drivers
 #define FRONT_RIGHT_PWM_FW 9
@@ -46,6 +58,7 @@
 #define FORWARD 1
 #define BACKWARD -1
 #define STOP 0
+#define ALARM 4
 
 #define SLAVE_ADDRESS 0x08
 
@@ -90,7 +103,12 @@ void steering();
 void failsafe_handle();
 void left_motors(int8_t mode, uint8_t pwm);
 void right_motors(int8_t mode, uint8_t pwm);
-void RCdrive();
+void Drive();
+void RCDrive();
+void sbusCheck();
+
+void indicatorRC();
+void indicatorI2C();
 
 /*--------------------------------------------I2C Comm-------------------------------*/
 void receiveData(int byteCount);
@@ -110,6 +128,7 @@ void setup() {
   sbus_rx.Begin();
   sbus_tx.Begin();
 
+  pinMode(ALARM, OUTPUT);
   pinMode(FRONT_RIGHT_EN_FW, OUTPUT);
   pinMode(FRONT_RIGHT_EN_BW, OUTPUT);
   pinMode(FRONT_LEFT_EN_FW, OUTPUT);
@@ -136,15 +155,7 @@ void setup() {
 
 
 void loop() {
-  while(1) {
-    Serial.println("Waiting for I2C communication");
-    if(I2C_flag == true) {
-      Serial.println("Gained I2C communication");
-      delay(1000);
-      break;
-    }
-  }
-  I2CDrive();
+  Drive();
 }
 
 void backward_drive(uint8_t bw_pwm,int32_t  turn_pwm) {
@@ -327,14 +338,15 @@ void stop() {
 void throttle_steering() {
   int32_t throttleValue = 0;
   int32_t steeringValue = 0;
-  if(rc_flag == true) {
+  if(rc_flag == true && sbus_rx.data().ch[MODE_CHANNEL_INDEX] == SBUS_MODE_MANUAL) {
     throttleValue = map(sbus_rx.data().ch[THROTTLE_CHANNEL_INDEX], SBUS_THROTTLE_MIN, SBUS_THROTTLE_MAX, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
     steeringValue = map(sbus_rx.data().ch[STEERING_CHANNEL_INDEX], SBUS_STEERING_MIN, SBUS_STEERING_MAX, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
   }
-  if(I2C_flag == true) {
+  if(I2C_flag == true && sbus_rx.data().ch[MODE_CHANNEL_INDEX] == SBUS_MODE_MISSION) {
     throttleValue = map(I2C_throttle_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE, MAX_PWM_DUTY_CYCLE);
     steeringValue = map(I2C_steering_pwm, 0, 255, -MAX_PWM_DUTY_CYCLE,  MAX_PWM_DUTY_CYCLE);
-  } else {
+  }
+  if(I2C_flag == false && rc_flag == false) {
     throttleValue = 0;
     steeringValue = 0;
   }
@@ -468,18 +480,39 @@ void right_motors(int8_t mode, uint8_t pwm) {
   }
 }
 
-void RCdrive() {
-  I2C_flag  = false;
-  rc_flag  = true;
+void sbusCheck() {
+  while(sbus_rx.data().ch[CHECK_CHANNEL_INDEX] > SBUS_CHECK_TRIM) {
+      stop(); // stop the car while debugging the sbus value
+      sbus_rx.Read();
+      data = sbus_rx.data();
+      for (int8_t i = 0; i < data.NUM_CH; i++) {
+        // Serial.print(data.ch[i]);
+        Serial.print(sbus_rx.data().ch[i]);
+        Serial.print("\t");
+      }
+         /* Display lost frames and failsafe data */
+      Serial.print(data.lost_frame);
+      Serial.print("\t");
+      Serial.println(data.failsafe);
+  }
+}
+
+void RCDrive() {
+  rc_flag = true;
+  sbus_rx.Read();
+  throttle_steering();
+}
+
+void Drive() {
+  delay(2000);
   while(1) {
     sbus_rx.Read();
-    /* Grab the received data */
-    // data = sbus_rx.data();
-      // for (int8_t i = 0; i < data.NUM_CH; i++) {
-      //   Serial.print(data.ch[i]);
-      //   Serial.print("\t");
-      // }
-    if(sbus_rx.data().failsafe == 0) {
+    if(sbus_rx.data().ch[KILL_CHANNEL_INDEX] > SBUS_KILL_TRIM) {
+      Serial.println("KILL!");
+      stop();
+      break;
+    }
+    if(sbus_rx.data().failsafe == 0 && sbus_rx.Read()==1) {
       Serial.print("\n");
       Serial.println("Acquired RC signal, ready to arm...");
       // while(!(sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM));
@@ -487,11 +520,49 @@ void RCdrive() {
         arm_flag = false;
         sbus_rx.Read();
       }
+      for(int i = 0; i < 2; i++) {
+        digitalWrite(ALARM, HIGH);
+        delay(100);
+        digitalWrite(ALARM, LOW);
+        delay(100);
+      }
       Serial.println("Arming...");
       arm_flag = true;
       while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] > SBUS_ARM_TRIM) {
         sbus_rx.Read();
-        throttle_steering();
+        int rc_mode = sbus_rx.data().ch[MODE_CHANNEL_INDEX];
+        int i2c_notify = 0;
+        switch (rc_mode) {
+          case SBUS_MODE_MANUAL:
+            rc_flag = true;
+            I2C_flag = false;
+            throttle_steering();
+            break;
+          case SBUS_MODE_MISSION:
+            if(I2C_flag == false) {
+              Serial.println("Waiting for I2C communication");
+              for(int i = 0; i < 1; i++) {
+                digitalWrite(ALARM, HIGH);
+                delay(50);
+                digitalWrite(ALARM, LOW);
+                delay(50);
+              }
+            } else {
+                throttle_steering();
+            }
+            break;
+          case SBUS_MODE_OFFBOARD:
+            //will have sth else but first use sbusCheck()
+            sbusCheck();
+            break;
+          default:
+            break;
+        }
+        if(sbus_rx.data().ch[KILL_CHANNEL_INDEX] > SBUS_KILL_TRIM) {
+          Serial.println("KILL!");
+          stop();
+          break;
+        }
       }
       while(sbus_rx.data().failsafe == 0 && sbus_rx.data().ch[ARM_CHANNEL_INDEX] < SBUS_ARM_TRIM) {
         sbus_rx.Read();
@@ -533,12 +604,8 @@ void receiveData(int byteCount) {
   // Serial.println(receivedData[1]);
 }
 void I2CDrive() {
-  // I2C_flag = true;
-  rc_flag = false;
-  while(1) {
-    // receiveData(Wire.available());
-    throttle_steering();
-  }
+  sbus_rx.Read();
+  throttle_steering();
 }
 
 
@@ -547,3 +614,4 @@ void sendData()
 {
   Wire.write(data_to_echo);
 }
+/////////////////////////////
